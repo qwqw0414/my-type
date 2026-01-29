@@ -160,14 +160,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<LyricsRes
     const step1StartTime = Date.now();
 
     const searchPrompt = `Search for the complete lyrics of the song "${title}" by "${artist}".
-Return ONLY the original lyrics text, line by line, without any explanation, commentary, or romanization.`;
+Return ONLY the original lyrics text, line by line, without any explanation, commentary, or romanization.
+Do NOT include singer/member name annotations like (Member Name), (Singer Name), etc.`;
 
     const searchResponse = await ai.models.generateContent({
       model: model,
       contents: searchPrompt,
       config: {
         tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 0 },
+        // thinkingConfig: { thinkingBudget: 0 },
       },
     });
 
@@ -201,7 +202,10 @@ Instructions:
 - Each line should be a meaningful segment (not word by word)
 - Do NOT include romanization or any translation
 - Detect the language: 'ko' for Korean, 'en' for English, 'mixed' for mixed languages
-- Do not include section markers like [Verse], [Chorus] etc in the text
+- Do NOT include section markers like [Verse], [Chorus], [Hook], [Bridge], [Intro], [Outro] etc
+- Do NOT include singer/member name annotations like (Name), (Member), (Rapper), (Singer) - these indicate who sings the part and are NOT lyrics
+  Examples to EXCLUDE: (대성), (승리), (태양), (T.O.P), (G-Dragon), (Yo), (Hey), (Verse 1), etc.
+- If a line contains ONLY a name annotation in parentheses, skip that line entirely
 - If lyrics are empty, return empty lines array`;
 
     const structureResponse = await ai.models.generateContent({
