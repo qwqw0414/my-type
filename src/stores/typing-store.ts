@@ -236,7 +236,10 @@ export const useTypingStore = create<TypingStore>()(
     }),
     {
       name: 'typing-practice-storage',
-      partialize: (state) => ({ history: state.history }),
+      partialize: (state) => ({
+        history: state.history,
+        lyrics: state.lyrics,
+      }),
     }
   )
 );

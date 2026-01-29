@@ -32,15 +32,15 @@ function Character({ char, typed, isCurrentPosition }: CharacterProps) {
   let className = 'inline-block transition-colors duration-75';
 
   if (isCurrentPosition) {
-    className += ' border-b-2 border-zinc-900 dark:border-zinc-100';
+    className += ' border-b-2 border-emerald-500';
   }
 
   if (!isTyped) {
-    className += ' text-zinc-400 dark:text-zinc-500';
+    className += ' text-[var(--muted-foreground)]';
   } else if (isCorrect) {
     className += ' text-emerald-600 dark:text-emerald-400';
   } else {
-    className += ' text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
+    className += ' text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/30 rounded-sm';
   }
 
   return <span className={className}>{char === ' ' ? '\u00A0' : char}</span>;
@@ -80,8 +80,8 @@ export function TypingLine({ line, userInput, onInputChange, onSubmit, isActive 
   return (
     <div className="space-y-4">
       {/* Target text display */}
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-        <div className="font-mono text-lg leading-relaxed tracking-wide">
+      <div className="rounded-xl bg-[var(--muted)] p-5">
+        <div className="font-mono text-lg leading-loose tracking-wide">
           {characters.map((charData, index) => (
             <Character key={index} {...charData} />
           ))}
@@ -89,7 +89,7 @@ export function TypingLine({ line, userInput, onInputChange, onSubmit, isActive 
       </div>
 
       {/* Progress bar */}
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+      <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--card-border)]">
         <div
           className="h-full rounded-full bg-emerald-500 transition-all duration-150"
           style={{ width: `${progress}%` }}
@@ -104,7 +104,7 @@ export function TypingLine({ line, userInput, onInputChange, onSubmit, isActive 
         onChange={(e) => onInputChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="여기에 입력하세요..."
-        className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 font-mono text-lg focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-400"
+        className="w-full rounded-xl border-2 border-[var(--card-border)] bg-[var(--card)] px-4 py-3.5 font-mono text-lg text-[var(--foreground)] transition-colors focus:border-emerald-500 focus:outline-none disabled:opacity-50"
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -112,7 +112,7 @@ export function TypingLine({ line, userInput, onInputChange, onSubmit, isActive 
         disabled={!isActive}
       />
 
-      <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-center text-xs text-[var(--muted-foreground)]">
         Enter 키를 눌러 다음 줄로 이동
       </p>
     </div>

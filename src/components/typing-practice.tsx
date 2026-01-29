@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Play, RotateCcw, Check, ChevronRight } from '@/components/icons';
+import { useRouter } from 'next/navigation';
+import { Play, RotateCcw, Check, ChevronRight, Home } from '@/components/icons';
 import { useTypingStore } from '@/stores/typing-store';
 import { TypingLine } from '@/components/typing-line';
 import { StatsDisplay } from '@/components/stats-display';
@@ -12,6 +13,7 @@ import type { TypingStats } from '@/types/lyrics';
 // ============================================================================
 
 export function TypingPractice() {
+  const router = useRouter();
   const {
     lyrics,
     currentLineIndex,
@@ -25,9 +27,17 @@ export function TypingPractice() {
     resetPractice,
     calculateStats,
     saveRecord,
+    clearLyrics,
   } = useTypingStore();
 
   const [liveStats, setLiveStats] = useState<TypingStats | null>(null);
+
+  // Initialize stats immediately when practice starts
+  useEffect(() => {
+    if (isStarted && !liveStats) {
+      setLiveStats(calculateStats());
+    }
+  }, [isStarted, liveStats, calculateStats]);
 
   // Update live stats every second while practicing
   useEffect(() => {
@@ -62,6 +72,12 @@ export function TypingPractice() {
     resetPractice();
   }, [saveRecord, resetPractice]);
 
+  const handleSaveAndGoHome = useCallback(() => {
+    saveRecord();
+    clearLyrics();
+    router.push('/');
+  }, [saveRecord, clearLyrics, router]);
+
   if (!lyrics) return null;
 
   const currentLine = lyrics.lines[currentLineIndex];
@@ -74,21 +90,23 @@ export function TypingPractice() {
       <div className="space-y-6">
         {/* Song info */}
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{lyrics.title}</h2>
-          <p className="mt-1 text-zinc-600 dark:text-zinc-400">{lyrics.artist}</p>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
-            {totalLines}줄 | {lyrics.language === 'ko' ? '한국어' : lyrics.language === 'en' ? '영어' : '혼합'}
-          </p>
+          <h2 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{lyrics.title}</h2>
+          <p className="mt-1.5 text-[var(--muted-foreground)]">{lyrics.artist}</p>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1 text-xs text-[var(--muted-foreground)]">
+            <span>{totalLines}줄</span>
+            <span className="h-1 w-1 rounded-full bg-current opacity-40" />
+            <span>{lyrics.language === 'ko' ? '한국어' : lyrics.language === 'en' ? '영어' : '혼합'}</span>
+          </div>
         </div>
 
         {/* Preview */}
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-          <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {lyrics.lines.slice(0, 10).map((line) => (
+        <div className="max-h-56 overflow-y-auto rounded-xl bg-[var(--muted)] p-4">
+          <div className="space-y-1.5 text-sm leading-relaxed text-[var(--muted-foreground)]">
+            {lyrics.lines.slice(0, 8).map((line) => (
               <p key={line.index}>{line.text}</p>
             ))}
-            {lyrics.lines.length > 10 && (
-              <p className="text-zinc-400 dark:text-zinc-500">... 외 {lyrics.lines.length - 10}줄</p>
+            {lyrics.lines.length > 8 && (
+              <p className="pt-1 opacity-60">... 외 {lyrics.lines.length - 8}줄</p>
             )}
           </div>
         </div>
@@ -96,7 +114,7 @@ export function TypingPractice() {
         {/* Start button */}
         <button
           onClick={startPractice}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 font-medium text-white transition-colors hover:bg-emerald-700"
+          className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-emerald-500 px-5 py-3.5 font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-600 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-[0.98]"
         >
           <Play className="h-5 w-5" />
           타자 연습 시작
@@ -110,32 +128,41 @@ export function TypingPractice() {
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 shadow-lg shadow-emerald-500/20 dark:bg-emerald-900/30">
             <Check className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">완료!</h2>
-          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+          <h2 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">완료!</h2>
+          <p className="mt-1.5 text-[var(--muted-foreground)]">
             {lyrics.title} - {lyrics.artist}
           </p>
         </div>
 
         {liveStats && <StatsDisplay stats={liveStats} />}
 
-        <div className="flex gap-3">
+        {/* Action buttons */}
+        <div className="space-y-3">
           <button
-            onClick={handleSaveAndReset}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-3 font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            onClick={handleSaveAndGoHome}
+            className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-emerald-500 px-5 py-3.5 font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-600 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-[0.98]"
           >
-            <Check className="h-5 w-5" />
-            기록 저장
+            <Home className="h-5 w-5" />
+            저장하고 다른 노래 검색
           </button>
-          <button
-            onClick={resetPractice}
-            className="flex items-center justify-center gap-2 rounded-lg border border-zinc-300 px-4 py-3 font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            <RotateCcw className="h-5 w-5" />
-            다시
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSaveAndReset}
+              className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--card)] px-4 py-3 font-medium text-[var(--foreground)] transition-all hover:bg-[var(--muted)] active:scale-[0.98]"
+            >
+              <RotateCcw className="h-4 w-4" />
+              다시 연습
+            </button>
+            <button
+              onClick={resetPractice}
+              className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm text-[var(--muted-foreground)] transition-all hover:bg-[var(--muted)] hover:text-[var(--foreground)] active:scale-[0.98]"
+            >
+              저장 없이
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -147,27 +174,27 @@ export function TypingPractice() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">{lyrics.title}</h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{lyrics.artist}</p>
+          <h2 className="font-semibold text-[var(--foreground)]">{lyrics.title}</h2>
+          <p className="text-sm text-[var(--muted-foreground)]">{lyrics.artist}</p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <p className="font-semibold tabular-nums text-[var(--foreground)]">
             {currentLineIndex + 1} / {totalLines}
           </p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{progress}% 완료</p>
+          <p className="text-xs text-[var(--muted-foreground)]">{progress}%</p>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--muted)]">
         <div
           className="h-full rounded-full bg-emerald-500 transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      {/* Live stats */}
-      {liveStats && <StatsDisplay stats={liveStats} isCompact />}
+      {/* Live stats - Always reserve space to prevent CLS */}
+      <StatsDisplay stats={liveStats} isCompact />
 
       {/* Current line */}
       {currentLine && (
@@ -182,8 +209,8 @@ export function TypingPractice() {
 
       {/* Next line preview */}
       {currentLineIndex < totalLines - 1 && (
-        <div className="flex items-center gap-2 text-sm text-zinc-400 dark:text-zinc-500">
-          <ChevronRight className="h-4 w-4" />
+        <div className="flex items-center gap-2 rounded-lg bg-[var(--muted)] px-3 py-2 text-sm text-[var(--muted-foreground)]">
+          <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
           <span className="truncate">{lyrics.lines[currentLineIndex + 1]?.text}</span>
         </div>
       )}
@@ -191,7 +218,7 @@ export function TypingPractice() {
       {/* Reset button */}
       <button
         onClick={resetPractice}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800"
+        className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl text-sm text-[var(--muted-foreground)] transition-all hover:bg-[var(--muted)] hover:text-[var(--foreground)] active:scale-[0.98]"
       >
         <RotateCcw className="h-4 w-4" />
         처음부터 다시

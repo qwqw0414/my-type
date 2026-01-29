@@ -3,17 +3,26 @@
 import { useState } from 'react';
 import { Search, Music, Loader2 } from '@/components/icons';
 import { useTypingStore } from '@/stores/typing-store';
-import type { LyricsResponse } from '@/types/lyrics';
+import { useLyricsMutation } from '@/hooks/use-lyrics';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface SearchFormProps {
+  onSuccess?: () => void;
+}
 
 // ============================================================================
 // Search Form Component
 // ============================================================================
 
-export function SearchForm() {
+export function SearchForm({ onSuccess }: SearchFormProps) {
   const [artist, setArtist] = useState('');
   const [title, setTitle] = useState('');
 
-  const { setLyrics, setLoading, setError, isLoading, clearLyrics } = useTypingStore();
+  const { setLyrics, setError, clearLyrics } = useTypingStore();
+  const lyricsMutation = useLyricsMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,65 +33,57 @@ export function SearchForm() {
     }
 
     clearLyrics();
-    setLoading(true);
 
-    try {
-      const response = await fetch('/api/lyrics', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ artist: artist.trim(), title: title.trim() }),
-      });
-
-      const result: LyricsResponse = await response.json();
-
-      if (!result.success || !result.data) {
-        setError(result.error ?? '가사를 불러오는데 실패했습니다.');
-        return;
+    lyricsMutation.mutate(
+      { artist: artist.trim(), title: title.trim() },
+      {
+        onSuccess: (data) => {
+          setLyrics(data);
+          onSuccess?.();
+        },
+        onError: (error) => {
+          setError(error.message);
+        },
       }
-
-      setLyrics(result.data);
-    } catch (error) {
-      console.error('[SearchForm] Error:', error);
-      setError('네트워크 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
+  const isLoading = lyricsMutation.isPending;
+
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-4">
+    <form onSubmit={handleSubmit} className="w-full space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="flex-1">
-          <label htmlFor="artist" className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label htmlFor="artist" className="mb-2 block text-sm font-medium text-[var(--foreground)]">
             가수명
           </label>
           <div className="relative">
-            <Music className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <Music className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
             <input
               type="text"
               id="artist"
               value={artist}
               onChange={(e) => setArtist(e.target.value)}
               placeholder="예: BTS, IU, Adele"
-              className="w-full rounded-lg border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500 dark:focus:ring-zinc-500"
+              className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--muted)] py-3 pl-11 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] transition-colors focus:border-emerald-500 focus:bg-[var(--card)] focus:outline-none disabled:opacity-50"
               disabled={isLoading}
             />
           </div>
         </div>
 
         <div className="flex-1">
-          <label htmlFor="title" className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label htmlFor="title" className="mb-2 block text-sm font-medium text-[var(--foreground)]">
             곡 제목
           </label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
             <input
               type="text"
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="예: Dynamite, 좋은 날"
-              className="w-full rounded-lg border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500 dark:focus:ring-zinc-500"
+              className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--muted)] py-3 pl-11 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] transition-colors focus:border-emerald-500 focus:bg-[var(--card)] focus:outline-none disabled:opacity-50"
               disabled={isLoading}
             />
           </div>
@@ -92,7 +93,7 @@ export function SearchForm() {
       <button
         type="submit"
         disabled={isLoading || !artist.trim() || !title.trim()}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-500/20 transition-all hover:bg-emerald-600 hover:shadow-md hover:shadow-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100"
       >
         {isLoading ? (
           <>
