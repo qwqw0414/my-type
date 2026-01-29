@@ -1,6 +1,9 @@
 import mysql, { Pool, RowDataPacket } from 'mysql2/promise';
 import type { LyricsData } from '@/types/lyrics';
 
+// Re-export for external use
+export type { LyricsData };
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -241,6 +244,163 @@ export async function saveLyrics(lyricsData: LyricsData): Promise<boolean> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`${LOG_PREFIX} Error saving lyrics [error]=[${errorMessage}]`);
     return false;
+  }
+}
+
+// ============================================================================
+// Song Types
+// ============================================================================
+
+export interface SongInfo {
+  artist: string;
+  title: string;
+}
+
+export interface SongDetail {
+  id: number;
+  artist: string;
+  title: string;
+  language: string;
+  linesCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================================
+// Song Management
+// ============================================================================
+
+export async function getAllSongs(): Promise<SongDetail[]> {
+  if (!pool || !isConnected) {
+    return [];
+  }
+
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT id, artist, title, language, 
+              JSON_LENGTH(lyrics_json, '$.lines') as lines_count,
+              created_at, updated_at 
+       FROM lyrics_cache 
+       ORDER BY updated_at DESC`
+    );
+
+    const songs: SongDetail[] = rows.map((row) => ({
+      id: row.id,
+      artist: row.artist,
+      title: row.title,
+      language: row.language,
+      linesCount: row.lines_count ?? 0,
+      createdAt: row.created_at?.toISOString() ?? '',
+      updatedAt: row.updated_at?.toISOString() ?? '',
+    }));
+
+    console.log(`${LOG_PREFIX} All songs fetched [count]=[${songs.length}]`);
+    return songs;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`${LOG_PREFIX} Error fetching all songs [error]=[${errorMessage}]`);
+    return [];
+  }
+}
+
+export async function deleteSong(id: number): Promise<boolean> {
+  if (!pool || !isConnected) {
+    return false;
+  }
+
+  try {
+    const [result] = await pool.execute<RowDataPacket[]>(
+      'DELETE FROM lyrics_cache WHERE id = ?',
+      [id]
+    );
+
+    const affectedRows = (result as unknown as { affectedRows: number }).affectedRows;
+    console.log(`${LOG_PREFIX} Song deleted [id]=[${id}] [affectedRows]=[${affectedRows}]`);
+    return affectedRows > 0;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`${LOG_PREFIX} Error deleting song [id]=[${id}] [error]=[${errorMessage}]`);
+    return false;
+  }
+}
+
+export async function getLyricsById(id: number): Promise<LyricsData | null> {
+  if (!pool || !isConnected) {
+    return null;
+  }
+
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT lyrics_json FROM lyrics_cache WHERE id = ?',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const row = rows[0];
+    let lyricsData: LyricsData;
+
+    if (typeof row.lyrics_json === 'string') {
+      lyricsData = JSON.parse(row.lyrics_json);
+    } else {
+      lyricsData = row.lyrics_json;
+    }
+
+    console.log(`${LOG_PREFIX} Lyrics fetched by id [id]=[${id}]`);
+    return lyricsData;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`${LOG_PREFIX} Error fetching lyrics by id [id]=[${id}] [error]=[${errorMessage}]`);
+    return null;
+  }
+}
+
+// ============================================================================
+// Random Songs
+// ============================================================================
+
+export async function getRandomSongs(limit: number = 5): Promise<SongInfo[]> {
+  if (!pool || !isConnected) {
+    console.log(`${LOG_PREFIX} getRandomSongs: Database not connected [pool]=[${!!pool}] [isConnected]=[${isConnected}]`);
+    return [];
+  }
+
+  try {
+    // Use query() instead of execute() for LIMIT with dynamic value
+    // MySQL prepared statements don't handle LIMIT parameters well
+    const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT artist, title FROM lyrics_cache ORDER BY RAND() LIMIT ${safeLimit}`
+    );
+
+    const songs: SongInfo[] = rows.map((row) => ({
+      artist: row.artist,
+      title: row.title,
+    }));
+
+    console.log(`${LOG_PREFIX} Random songs fetched [count]=[${songs.length}]`);
+    return songs;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`${LOG_PREFIX} Error fetching random songs [error]=[${errorMessage}]`);
+    return [];
+  }
+}
+
+export async function getSongCount(): Promise<number> {
+  if (!pool || !isConnected) {
+    return 0;
+  }
+
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT COUNT(*) as count FROM lyrics_cache'
+    );
+    return rows[0]?.count ?? 0;
+  } catch (error) {
+    return 0;
   }
 }
 
